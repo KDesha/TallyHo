@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#2f6b5a" />
+  <meta name="description" content="A sharp, accurate, mobile-first personal budgeting planner." />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icon.jpeg" type="image/jpeg" />
+  <link rel="apple-touch-icon" href="icon.jpeg" />
+  <link rel="stylesheet" href="styles.css" />
+  <title>TallyHo</title>
+</head>
+<body>
+  <section id="authGate" class="auth-gate">
+    <div class="auth-art">
+      <img src="icon.jpeg" alt="TallyHo leaf logo" />
+      <p class="eyebrow">A BUDGET APP WITH A BACKBONE</p>
+      <h1>Tell your money where to go before it wanders off.</h1>
+      <p>Weekly and biweekly planning, bill smoothing, debt tools, and a straight answer to the dangerous little question: “Can I buy it?”</p>
+      <div class="auth-feature-grid"><span>✓ Free plan included</span><span>✓ Private local data</span><span>✓ Premium tools available</span><span>✓ App Store shell</span></div>
+    </div>
+    <div class="auth-card">
+      <div class="auth-brand"><img src="icon.jpeg" alt="" /><div><strong>TallyHo</strong><small>budget with breathing room</small></div></div>
+      <div class="auth-tabs"><button type="button" class="active" data-auth-tab="login">Log in</button><button type="button" data-auth-tab="signup">Create account</button></div>
+      <form id="loginForm" class="auth-form">
+        <label class="field"><span>Email</span><input id="loginEmail" type="email" autocomplete="email" required placeholder="you@example.com" /></label>
+        <label class="field"><span>Password</span><input id="loginPassword" type="password" autocomplete="current-password" required minlength="6" placeholder="At least 6 characters" /></label>
+        <button class="add-btn auth-submit" type="submit">Log in</button>
+        <button id="deviceAuthLogin" class="outline-btn auth-device" type="button" hidden>Use device unlock</button>
+        <button id="forgotPassword" class="text-btn auth-link" type="button">Forgot password?</button>
+      </form>
+      <form id="signupForm" class="auth-form" hidden>
+        <label class="field"><span>Name</span><input id="signupName" required maxlength="50" autocomplete="name" placeholder="Your name" /></label>
+        <label class="field"><span>Email</span><input id="signupEmail" type="email" autocomplete="email" required placeholder="you@example.com" /></label>
+        <label class="field"><span>Password</span><input id="signupPassword" type="password" autocomplete="new-password" required minlength="6" placeholder="At least 6 characters" /></label>
+        <button class="add-btn auth-submit" type="submit">Create free account</button>
+      </form>
+      <p class="demo-credentials">Demo login: <strong>demo@tallyho.app</strong><br />Password: <strong>FronzAndLillian!</strong></p>
+      <p class="auth-legal">By continuing, you agree to the Terms and Privacy Policy. Production builds should connect this screen to your secure authentication provider.</p>
+    </div>
+  </section>
+
+  <div class="app-shell" id="appShell" hidden>
+    <aside class="sidebar" aria-label="Main navigation">
+      <div class="brand"><span class="brand-mark">✦</span><div><strong>TallyHo</strong><small>budget with breathing room</small></div></div>
+      <nav id="sideNav" class="nav-list">
+        <button class="nav-item active" data-page="home"><span>⌂</span>Overview</button>
+        <button class="nav-item" data-page="calendar"><span>◫</span>Calendar</button>
+        <button class="nav-item" data-page="weekly"><span>▦</span>Weekly plan</button>
+        <button class="nav-item" data-page="coach" data-premium-feature="Split Coach"><span>✦</span>Split coach <i class="pro-pill">PRO</i></button>
+        <button class="nav-item" data-page="canbuy"><span>?</span>Can I buy it?</button>
+        <button class="nav-item" data-page="insights"><span>◔</span>Insights</button>
+        <button class="nav-item" data-page="debts"><span>◒</span>Debt plan</button>
+        <button class="nav-item" data-page="premium"><span>♛</span>Premium</button>
+        <button class="nav-item" data-page="settings"><span>⚙</span>Settings</button>
+      </nav>
+      <div class="side-note"><span class="leaf">❋</span><p>Budget the important stuff first. Then question the extras.</p></div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div class="mobile-brand"><span>✦</span><strong>TallyHo</strong></div>
+        <div id="periodControls" class="period-controls" aria-label="Budget period controls">
+          <button class="icon-btn" id="prevPeriod" title="Previous period" aria-label="Previous period">‹</button>
+          <button class="period-picker" id="periodLabel">This month</button>
+          <button class="icon-btn" id="nextPeriod" title="Next period" aria-label="Next period">›</button>
+        </div>
+        <div class="top-actions">
+          <button class="ghost-btn" id="jumpToday">Today</button>
+          <button class="account-chip" id="accountChip" type="button" data-go="settings"><span id="accountInitial">K</span><b id="accountName">Account</b></button><button class="add-btn" id="openAdd"><span>＋</span><span class="add-label">Add</span></button>
+        </div>
+      </header>
+
+      <section id="home" class="page active">
+        <div class="hero-row">
+          <div>
+            <p class="eyebrow">YOUR MONEY, WITH CLARITY</p>
+            <h1>Make your money quit being weird.</h1>
+            <p class="subhead" id="periodNarrative">A calm view of your budget, one decision at a time.</p>
+          </div>
+          <div class="mini-orb" aria-hidden="true"><span>☼</span></div>
+        </div>
+        <section class="kpi-grid" aria-label="Budget summary">
+          <article class="kpi-card income"><p>Expected income</p><strong id="kpiIncome">$0.00</strong><small id="incomeSub">for this period</small></article>
+          <article class="kpi-card bills"><p>Planned outflow</p><strong id="kpiOutflow">$0.00</strong><small id="outflowSub">payments & savings</small></article>
+          <article class="kpi-card balance"><p>Breathing room</p><strong id="kpiBalance">$0.00</strong><small id="balanceSub">after planned items</small></article>
+          <article class="kpi-card savings"><p>Saved this period</p><strong id="kpiSavings">$0.00</strong><small id="savingsSub">across all funds</small></article>
+        </section>
+
+        <section class="content-grid overview-grid">
+          <article class="panel flow-panel">
+            <div class="panel-heading"><div><p class="eyebrow">CASH FLOW</p><h2>Where this period is going</h2></div><button class="text-btn" data-go="insights">See insights ↗</button></div>
+            <div id="cashFlowList" class="flow-list"></div>
+          </article>
+          <article class="panel upcoming-panel">
+            <div class="panel-heading"><div><p class="eyebrow">COMING UP</p><h2>Next payments</h2></div><button class="text-btn" data-go="calendar">View calendar ↗</button></div>
+            <div id="upcomingList" class="upcoming-list"></div>
+          </article>
+        </section>
+        <section class="content-grid lower-grid">
+          <article class="panel allocation-panel"><div class="panel-heading"><div><p class="eyebrow">PERIOD PLAN</p><h2>Income allocation</h2></div></div><div class="allocation-wrap"><canvas id="allocationChart" aria-label="Income allocation chart"></canvas><div id="allocationLegend" class="allocation-legend"></div></div></article>
+          <article class="panel checkin-panel"><div class="panel-heading"><div><p class="eyebrow">NO-NONSENSE CHECK-IN</p><h2>Keep the plan honest</h2></div></div><p>Add what is real, give every bill a date, and let the plan side-eye surprises before they get loud.</p><div class="checkin-actions"><button class="outline-btn" id="quickAddIncome">Add income</button><button class="outline-btn" id="quickAddPayment">Add payment</button></div></article>
+        </section>
+      </section>
+
+      <section id="calendar" class="page">
+        <div class="page-title-row"><div><p class="eyebrow">YEAR AT A GLANCE</p><h1>Payment calendar</h1><p class="subhead">Every scheduled item, generated from your recurrence rules.</p></div><div class="calendar-switch"><button id="calPrev">‹</button><strong id="calMonthLabel"></strong><button id="calNext">›</button></div></div>
+        <article class="panel calendar-panel"><div class="calendar-weekdays"><span>Sun</span><span>Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span></div><div id="calendarGrid" class="calendar-grid"></div></article>
+        <section class="content-grid calendar-bottom"><article class="panel"><div class="panel-heading"><div><p class="eyebrow">SELECTED DAY</p><h2 id="selectedDayTitle">Choose a day</h2></div></div><div id="selectedDayItems" class="day-items empty-state">Tap a payment date to see its details.</div></article><article class="panel"><div class="panel-heading"><div><p class="eyebrow">YEARLY RHYTHM</p><h2>Upcoming by month</h2></div></div><div id="monthlyRhythm" class="rhythm-list"></div></article></section>
+        <details class="panel calendar-ledger">
+          <summary><span><p class="eyebrow">MONTHLY LEDGER</p><h2>Everything scheduled</h2></span><strong id="calendarLedgerSummary">$0.00 net</strong></summary>
+          <div id="calendarLedgerList" class="calendar-ledger-list"></div>
+        </details>
+      </section>
+
+      <section id="insights" class="page">
+        <div class="page-title-row"><div><p class="eyebrow">THE BIGGER PICTURE</p><h1>Spending insights</h1><p class="subhead">Planned activity, with a clean year-to-date view.</p></div></div>
+        <section class="metric-strip"><div><span>Year-to-date income</span><strong id="ytdIncome">$0.00</strong></div><div><span>Year-to-date outflow</span><strong id="ytdOutflow">$0.00</strong></div><div><span>Year-to-date saved</span><strong id="ytdSaved">$0.00</strong></div><div><span>Current net</span><strong id="ytdNet">$0.00</strong></div></section>
+        <section class="insight-grid"><article class="panel chart-panel wide"><div class="panel-heading"><div><p class="eyebrow">CUMULATIVE, YEAR TO DATE</p><h2>Income and outflow</h2></div><span class="actual-key">Scheduled money from your plan</span></div><canvas id="cumulativeChart"></canvas></article><article class="panel chart-panel"><div class="panel-heading"><div><p class="eyebrow">BY CATEGORY</p><h2>Outflow mix</h2></div></div><canvas id="categoryChart"></canvas><div id="categoryLegend" class="chart-legend"></div></article><article class="panel chart-panel"><div class="panel-heading"><div><p class="eyebrow">DAILY ACTIVITY</p><h2>Spending pattern</h2></div></div><canvas id="dailyChart"></canvas></article><article class="panel chart-panel"><div class="panel-heading"><div><p class="eyebrow">SAVINGS GROWTH</p><h2>Across your funds</h2></div></div><canvas id="savingsChart"></canvas></article></section>
+      </section>
+
+
+      <section id="weekly" class="page">
+        <div class="page-title-row"><div><p class="eyebrow">YOUR FOUR-WEEK RUNWAY</p><h1>Weekly money map</h1><p class="subhead">Every scheduled dollar, week by week, plus the running amount left after it has done its little disappearing act.</p></div><div class="plan-page-actions"><div id="weeklyViewToggle" class="segmented-toggle" role="group" aria-label="Choose weekly map view"><button type="button" data-plan-view="weekly">Weekly</button><button type="button" data-plan-view="biweekly">Biweekly</button><button type="button" data-plan-view="both" class="active">Both</button></div><button class="outline-btn" data-go="coach">See split suggestions ↗</button></div></div>
+        <section class="weekly-summary-strip"><div><span>Four-week window</span><strong id="weeklyRangeLabel">-</strong></div><div><span>Starting cushion</span><strong id="weeklyStartingBalance">$0.00</strong></div><div><span>Scheduled income</span><strong id="weeklyIncomeTotal">$0.00</strong></div><div><span>Planned outflow</span><strong id="weeklyOutflowTotal">$0.00</strong></div><div><span>Left after week 4</span><strong id="weeklyAfterTotal">$0.00</strong></div></section>
+        <p id="weeklyPlanNote" class="weekly-note"></p>
+        <section id="weeklyOverview" class="weekly-overview"></section>
+        <section class="biweekly-section"><div class="section-label"><p class="eyebrow">PAYDAY VIEW</p><h2>Biweekly totals</h2><p>Same planned money, bundled into two-week chunks for the “where did my paycheck go?” moment.</p></div><div id="biweeklyOverview" class="biweekly-overview"></div></section>
+      </section>
+
+      <section id="coach" class="page">
+        <div class="page-title-row"><div><p class="eyebrow">MAKE THE WEEKS PLAY NICE</p><h1 id="coachHeadline">Payment split coach</h1><p id="coachSummary" class="subhead">TallyHo turns dated bills into simple weekly and biweekly set-asides.</p></div><button class="outline-btn" data-go="weekly">Open weekly map ↗</button></div>
+        <section class="coach-controls panel" aria-label="Split coach controls">
+          <div class="coach-control-copy"><p class="eyebrow">TUNE THE MATH</p><h2>Filter the bills you want to split</h2><p>Use a price range to test the smaller stuff, the bigger bills, or the whole parade.</p></div>
+          <div class="coach-filter-row">
+            <label class="field"><span>Minimum bill</span><div class="money-input"><i>$</i><input id="coachMinPrice" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0" /></div></label>
+            <label class="field"><span>Maximum bill</span><div class="money-input"><i>$</i><input id="coachMaxPrice" type="number" min="0" step="0.01" inputmode="decimal" placeholder="No cap" /></div></label>
+            <button id="coachClearFilters" class="ghost-btn" type="button">Clear filter</button>
+          </div>
+          <div class="coach-view-row"><span class="control-label">Show the pull-out plan</span><div class="segmented-toggle" role="group" aria-label="Set aside cadence"><button type="button" data-coach-view="weekly">Weekly</button><button type="button" data-coach-view="biweekly">Biweekly</button><button type="button" data-coach-view="both" class="active">Both</button></div></div>
+        </section>
+        <section class="coach-metrics"><article><span id="coachWeekLabel">Filtered weekly budget</span><strong id="coachWeekTarget">$0.00</strong></article><article><span id="coachBiweekLabel">Filtered biweekly budget</span><strong id="coachBiweekTarget">$0.00</strong></article><article><span>Heaviest scheduled week</span><strong id="coachSpike">-</strong></article></section>
+        <p id="coachWithdrawalNote" class="weekly-note"></p>
+        <p id="coachSpikeNote" class="weekly-note"></p>
+        <section id="pulloutSchedule" class="cash-plan panel"></section>
+        <section id="splitSuggestions" class="split-suggestions"></section>
+      </section>
+
+      <section id="canbuy" class="page">
+        <div class="page-title-row"><div><p class="eyebrow">THE PURCHASE REALITY CHECK</p><h1>Can I buy it?</h1><p class="subhead">Run the purchase against your real weekly or biweekly cash plan before your cart starts making executive decisions.</p></div><span id="buyChecksBadge" class="estimate-badge">Free checks available</span></div>
+        <section class="buy-layout">
+          <article class="panel buy-form-panel"><p class="eyebrow">CHECK A PURCHASE</p><h2>What are you thinking about buying?</h2><form id="buyCheckForm" class="buy-form"><label class="field"><span>Purchase name</span><input id="buyName" maxlength="70" required placeholder="e.g., New boots" /></label><label class="field"><span>Price</span><div class="money-input"><i>$</i><input id="buyAmount" type="number" min="0.01" step="0.01" required inputmode="decimal" placeholder="0.00" /></div></label><label class="field"><span>Check against</span><select id="buyCadence"><option value="weekly">This week</option><option value="biweekly">This biweekly period</option></select></label><label class="field"><span>Type</span><select id="buyPriority"><option value="want">Want</option><option value="need">Need</option></select></label><button class="add-btn" type="submit">Judge my purchase</button></form></article>
+          <article id="buyVerdict" class="panel buy-verdict empty-verdict"><div class="verdict-icon">?</div><p class="eyebrow">TALLYHO VERDICT</p><h2>Give me a price. I’ll give you the truth.</h2><p>Your verdict includes the money already spoken for, your safety buffer, and what the purchase leaves behind.</p></article>
+        </section>
+        <article class="panel buy-history-panel"><div class="panel-heading"><div><p class="eyebrow">RECENT REALITY CHECKS</p><h2>Purchase history</h2></div><button id="clearBuyHistory" class="danger-text" type="button">Clear history</button></div><div id="buyHistory" class="buy-history"></div></article>
+      </section>
+
+      <section id="premium" class="page">
+        <div class="premium-hero"><div><p class="eyebrow">TALLYHO PREMIUM</p><h1>More control. Fewer budget surprises.</h1><p>Unlock unlimited planning, the Split Coach, deeper insights, debt strategy, cloud-ready syncing, and unlimited “Can I buy it?” checks.</p><button id="heroUpgrade" class="add-btn" type="button">Start premium</button></div><div class="premium-price"><span>Suggested launch price</span><strong>$4.99</strong><small>per month · $39.99 yearly</small></div></div>
+        <section class="plan-grid"><article class="panel plan-card"><p class="eyebrow">FREE</p><h2>Build the habit</h2><strong class="plan-price">$0</strong><ul><li>Up to 25 planned money items</li><li>Overview and calendar</li><li>Weekly money map</li><li>3 purchase checks per week</li><li>Private local backup</li></ul><button class="outline-btn" disabled>Current free plan</button></article><article class="panel plan-card featured"><p class="eyebrow">PREMIUM</p><h2>Run the whole show</h2><strong class="plan-price">$4.99/mo</strong><ul><li>Unlimited bills, income, and savings</li><li>Bill-smoothing Split Coach</li><li>Unlimited purchase checks</li><li>Spending and savings insights</li><li>Debt payoff planning</li><li>Premium color themes</li><li>Cloud sync when connected</li></ul><button id="premiumUpgrade" class="add-btn" type="button">Unlock premium</button><button id="restorePurchases" class="text-btn" type="button">Restore purchases</button></article></section>
+        <p class="subscription-note">Payment is charged through the App Store in the production iOS build. Subscription details, renewal terms, privacy policy, and account management must be configured before submission.</p>
+      </section>
+
+      <section id="debts" class="page">
+        <div class="page-title-row"><div><p class="eyebrow">PAY IT DOWN, ON PURPOSE</p><h1>Debt plan</h1><p class="subhead">Keep balances, minimums, and extra payoff momentum in one grounded view.</p></div><button class="outline-btn" id="openDebt">＋ Add debt</button></div>
+        <section id="debtCards" class="debt-grid"></section>
+        <article class="panel payoff-panel"><div class="panel-heading"><div><p class="eyebrow">PAYOFF MOMENTUM</p><h2>Debt reduction estimate</h2></div><span id="debtEstimate" class="estimate-badge">Add a debt to begin</span></div><p id="debtExplanation">Enter a balance, APR, and monthly payment. TallyHo uses a standard declining-balance estimate to help you understand the path, while keeping your recorded balance as the source of truth.</p></article>
+      </section>
+
+      <section id="settings" class="page">
+        <div class="page-title-row"><div><p class="eyebrow">MAKE IT YOURS</p><h1>Settings</h1><p class="subhead">Your budget structure adapts to the way money actually arrives and leaves.</p></div></div>
+        <section class="settings-grid">
+          <article class="panel setting-card account-setting"><p class="eyebrow">ACCOUNT</p><h2 id="settingsUserName">Your account</h2><p id="settingsUserEmail" class="setting-help"></p><div class="settings-actions"><button id="managePlan" class="outline-btn" type="button">Manage plan</button><button id="logoutButton" class="outline-btn" type="button">Log out</button><button id="deleteAccount" class="danger-text" type="button">Delete account</button></div></article>
+          <article class="panel setting-card account-setting device-auth-card"><p class="eyebrow">DEVICE UNLOCK</p><h2>Face ID, Touch ID, or passcode</h2><p id="deviceAuthStatus" class="setting-help">Check this device before enabling quick login.</p><div class="settings-actions"><button id="enableDeviceAuth" class="outline-btn" type="button">Enable device unlock</button><button id="disableDeviceAuth" class="danger-text" type="button" hidden>Turn off device unlock</button></div></article>
+          <article class="panel setting-card"><p class="eyebrow">BUDGET RHYTHM</p><h2>How should your plan break down?</h2><div id="cadenceOptions" class="segmented"><button data-cadence="weekly">Weekly</button><button data-cadence="biweekly">Biweekly</button><button data-cadence="monthly">Monthly</button></div><p class="setting-help">Changing this never edits your transactions. It simply groups the same dates into a new budget window.</p></article>
+          <article class="panel setting-card"><p class="eyebrow">CATEGORIES</p><h2>Organize your spending</h2><div id="categorySettings" class="chip-editor"></div><form id="categoryForm" class="inline-form"><input id="newCategory" maxlength="35" placeholder="Add a category" /><button class="small-add" type="submit">Add</button></form></article>
+          <article class="panel setting-card"><p class="eyebrow">SAVINGS FUNDS</p><h2>Separate what you are growing</h2><div id="savingsSettings" class="chip-editor"></div><form id="savingsForm" class="inline-form"><input id="newSavings" maxlength="35" placeholder="Name a savings fund" /><button class="small-add" type="submit">Add</button></form></article>
+          <article class="panel setting-card"><p class="eyebrow">RUNNING BALANCE</p><h2>Starting cushion</h2><p class="setting-help">Optional: enter what is available before this four-week plan starts. TallyHo adds scheduled income and subtracts scheduled payments from it; it never changes your real accounts.</p><form id="cushionForm" class="inline-form"><div class="money-input"><i>$</i><input id="cushionInput" min="0" step="0.01" type="number" inputmode="decimal" placeholder="0.00" /></div><button class="small-add" type="submit">Save</button></form></article>
+          <article class="panel setting-card theme-setting" data-premium-feature="Themes"><p class="eyebrow">PREMIUM THEMES</p><h2>Choose your app mood</h2><div id="themeOptions" class="theme-options"><button type="button" data-theme="classic"><span class="theme-swatch classic"></span><strong>Classic</strong></button><button type="button" data-theme="blush"><span class="theme-swatch blush"></span><strong>Blush</strong></button><button type="button" data-theme="heritage"><span class="theme-swatch heritage"></span><strong>Heritage</strong></button><button type="button" data-theme="rainbow"><span class="theme-swatch rainbow"></span><strong>Rainbow</strong></button></div><p id="themeHelp" class="setting-help">Premium members can switch the full app palette any time.</p></article>
+          <article class="panel setting-card"><p class="eyebrow">YOUR DATA</p><h2>Private by default</h2><p class="setting-help">Your entries stay in this browser unless you export them. Use backups whenever you make major changes.</p><div class="settings-actions"><button class="outline-btn" id="exportData">Export backup</button><label class="outline-btn file-label">Import backup<input type="file" id="importData" accept="application/json" hidden /></label><button class="danger-text" id="resetData">Reset all data</button></div></article>
+        </section>
+      </section>
+    </main>
+
+    <nav class="mobile-nav" aria-label="Mobile navigation"><button class="active" data-page="home">⌂<span>Home</span></button><button data-page="calendar">◫<span>Calendar</span></button><button data-page="weekly">▦<span>Weekly</span></button><button class="mobile-add" id="mobileAdd" aria-label="Add money item">＋</button><button data-page="insights">◔<span>Insights</span></button><button data-page="canbuy">?<span>Can I buy?</span></button><button data-page="settings">⚙<span>Settings</span></button></nav>
+  </div>
+
+  <section id="onboardingGate" class="onboarding-overlay" hidden>
+    <form id="onboardingForm" class="onboarding-card onboarding-settings">
+      <div class="onboarding-heading"><p class="eyebrow">WELCOME TO TALLYHO</p><h2>Set up your budget basics.</h2><p class="setting-help">Start with the same structure you can edit later in Settings. Tiny bossy budget, big helpful energy.</p></div>
+      <section class="onboarding-settings-grid">
+        <article class="panel setting-card"><p class="eyebrow">BUDGET RHYTHM</p><h2>How should your plan break down?</h2><div id="onboardingCadenceOptions" class="segmented"><button type="button" data-onboarding-cadence="weekly">Weekly</button><button type="button" data-onboarding-cadence="biweekly">Biweekly</button><button type="button" data-onboarding-cadence="monthly">Monthly</button></div><p class="setting-help">This only changes how dates are grouped. Your money items stay put.</p></article>
+        <article class="panel setting-card"><p class="eyebrow">CATEGORIES</p><h2>Organize your spending</h2><div id="onboardingCategorySettings" class="chip-editor"></div><div class="inline-form"><input id="onboardingNewCategory" maxlength="35" placeholder="Add a category" /><button id="onboardingAddCategory" class="small-add" type="button">Add</button></div></article>
+        <article class="panel setting-card"><p class="eyebrow">SAVINGS FUNDS</p><h2>Separate what you are growing</h2><div id="onboardingSavingsSettings" class="chip-editor"></div><div class="inline-form"><input id="onboardingNewSavings" maxlength="35" placeholder="Name a savings fund" /><button id="onboardingAddSavings" class="small-add" type="button">Add</button></div></article>
+        <article class="panel setting-card"><p class="eyebrow">RUNNING BALANCE</p><h2>Starting cushion</h2><p class="setting-help">Optional: enter what is available before this plan starts.</p><div class="inline-form"><div class="money-input"><i>$</i><input id="onboardingCushion" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00" /></div></div></article>
+      </section>
+      <div class="onboarding-actions"><button type="button" class="outline-btn" id="skipOnboarding">Use defaults</button><button type="submit" class="add-btn">Start planning</button></div>
+    </form>
+  </section>
+
+  <div id="modalOverlay" class="modal-overlay" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <button id="closeModal" class="modal-close" aria-label="Close">×</button>
+      <div class="modal-heading"><p class="eyebrow" id="modalEyebrow">ADD TO YOUR PLAN</p><h2 id="modalTitle">Add a money item</h2><p id="modalSub">Tell TallyHo what is coming in, leaving, or being set aside.</p></div>
+      <form id="entryForm">
+        <input type="hidden" id="entryId" />
+        <div class="type-tabs"><label><input type="radio" name="entryType" value="payment" checked />Payment</label><label><input type="radio" name="entryType" value="income" />Income</label><label><input type="radio" name="entryType" value="savings" />Savings</label></div>
+        <div class="form-grid">
+          <label class="field full"><span>Name</span><input id="entryName" required maxlength="70" placeholder="e.g., Cherryland Electric" /></label>
+          <label class="field"><span>Amount</span><div class="money-input"><i>$</i><input id="entryAmount" required min="0" step="0.01" type="number" inputmode="decimal" placeholder="0.00" /></div></label>
+          <label class="field"><span>Date <em>(optional for one-time)</em></span><input id="entryDate" type="date" /></label>
+          <label class="field payment-only"><span>Category</span><select id="entryCategory"></select></label>
+          <label class="field savings-only" hidden><span>Savings fund</span><select id="entrySavings"></select></label>
+          <label class="field"><span>Account / note</span><input id="entryAccount" maxlength="50" placeholder="Optional" /></label>
+          <label class="field full date-note"><input type="checkbox" id="repeatEnabled" /><span>Repeat this item on a schedule</span></label>
+          <div id="repeatFields" class="repeat-grid full" hidden><label class="field"><span>Every</span><input id="repeatEvery" type="number" min="1" max="120" value="1" /></label><label class="field"><span>Unit</span><select id="repeatUnit"><option value="months">month(s)</option><option value="weeks">week(s)</option><option value="years">year(s)</option></select></label><p class="repeat-help">TallyHo will show occurrences from this date through the next 12 months (and beyond as you use the app).</p></div>
+        </div>
+        <div class="modal-actions"><button type="button" class="ghost-btn" id="cancelModal">Cancel</button><button type="submit" class="add-btn" id="saveEntry">Save item</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div id="debtModal" class="modal-overlay" hidden><div class="modal compact" role="dialog" aria-modal="true"><button class="modal-close close-debt" aria-label="Close">×</button><div class="modal-heading"><p class="eyebrow">DEBT ACCOUNT</p><h2 id="debtModalTitle">Add a debt</h2></div><form id="debtForm"><input type="hidden" id="debtId" /><div class="form-grid"><label class="field full"><span>Debt name</span><input id="debtName" required maxlength="60" placeholder="e.g., Credit card" /></label><label class="field"><span>Current balance</span><div class="money-input"><i>$</i><input id="debtBalance" required min="0" step="0.01" type="number" /></div></label><label class="field"><span>APR %</span><input id="debtApr" min="0" step="0.01" type="number" placeholder="Optional" /></label><label class="field"><span>Minimum payment</span><div class="money-input"><i>$</i><input id="debtMin" min="0" step="0.01" type="number" placeholder="0.00" /></div></label><label class="field"><span>Extra payment</span><div class="money-input"><i>$</i><input id="debtExtra" min="0" step="0.01" type="number" placeholder="0.00" /></div></label></div><div class="modal-actions"><button type="button" class="ghost-btn close-debt">Cancel</button><button type="submit" class="add-btn">Save debt</button></div></form></div></div>
+  <div id="premiumModal" class="modal-overlay" hidden><div class="modal compact premium-modal"><button id="closePremiumModal" class="modal-close" aria-label="Close">×</button><div class="modal-heading"><p class="eyebrow">UPGRADE TO PREMIUM</p><h2>Let TallyHo do the heavy lifting.</h2><p>Unlock every planning tool and remove free limits.</p></div><div class="premium-choice"><button data-purchase-plan="monthly"><span>Monthly</span><strong>$4.99/month</strong></button><button data-purchase-plan="yearly" class="best"><span>Yearly · save 33%</span><strong>$39.99/year</strong></button></div><p class="setting-help">In this web preview, purchase buttons enable demo premium. The App Store build is wired to call a native StoreKit bridge.</p><button id="premiumContinue" class="add-btn" type="button">Continue with yearly</button></div></div>
+  <div id="resetPasswordModal" class="modal-overlay" hidden><div class="modal compact"><button id="closeResetPassword" class="modal-close" aria-label="Close">×</button><div class="modal-heading"><p class="eyebrow">PASSWORD RESET</p><h2>Get back into your budget.</h2><p>Preview builds reset the local password on this device. Production builds should send a secure reset email through your auth provider.</p></div><form id="resetPasswordForm" class="auth-form"><label class="field"><span>Email</span><input id="resetEmail" type="email" autocomplete="email" required placeholder="you@example.com" /></label><label class="field"><span>New password</span><input id="resetPassword" type="password" autocomplete="new-password" required minlength="6" placeholder="At least 6 characters" /></label><label class="field"><span>Confirm password</span><input id="resetConfirm" type="password" autocomplete="new-password" required minlength="6" placeholder="Repeat it, boss" /></label><button class="add-btn auth-submit" type="submit">Reset password</button></form></div></div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>

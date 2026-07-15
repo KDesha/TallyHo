@@ -1,0 +1,25 @@
+{
+  "name": "TallyHo \u2014 Budget With Breathing Room",
+  "short_name": "TallyHo",
+  "description": "Weekly and biweekly budgeting, bill splitting, debt planning, and purchase checks.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#f5f1e8",
+  "theme_color": "#2f4f41",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "id": "tallyho-budget",
+  "scope": "./"
+}

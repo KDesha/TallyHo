@@ -1,0 +1,10 @@
+{
+	"appId": "com.tallyho.budget",
+	"appName": "TallyHo",
+	"webDir": "www",
+	"server": {
+		"iosScheme": "https",
+		"androidScheme": "https"
+	},
+	"packageClassList": []
+}
