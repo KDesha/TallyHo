@@ -1188,3 +1188,104 @@ body[data-theme="rainbow"] .device-auth-card{
 body[data-theme="rainbow"] #resetPasswordModal .modal{
   background:linear-gradient(145deg,#fffefa,#eef9fc);
 }
+
+/* v15 - mobile header readability and softer typography */
+body{
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+.subhead,
+.setting-help,
+.empty-state,
+.weekly-note,
+.split-tip,
+.coach-control-copy p:last-child{
+  line-height:1.62;
+}
+.period-picker{
+  font-variant-numeric:tabular-nums;
+}
+
+@media(max-width:760px){
+  .topbar{
+    height:84px!important;
+    min-height:84px!important;
+    align-items:start!important;
+  }
+  .mobile-brand{
+    align-self:start;
+    margin-top:12px;
+  }
+  .top-actions{
+    align-self:start;
+    margin-top:8px;
+  }
+  .period-controls{
+    min-width:146px;
+    max-width:min(48vw,182px)!important;
+    align-self:start;
+    justify-self:center;
+    margin-top:18px;
+    padding:3px;
+    gap:3px;
+    border:1px solid rgba(47,107,90,.15);
+    border-radius:16px;
+    background:rgba(255,254,250,.78);
+    box-shadow:0 8px 18px rgba(23,40,36,.07);
+    backdrop-filter:blur(10px);
+    transform:none!important;
+  }
+  .period-controls .icon-btn{
+    width:28px!important;
+    height:28px!important;
+    border-radius:12px;
+    background:rgba(255,254,250,.92);
+    color:var(--forest);
+    font-size:19px!important;
+    line-height:1;
+    box-shadow:none;
+  }
+  .period-picker{
+    flex:1;
+    max-width:none!important;
+    min-width:0;
+    padding:6px 3px;
+    color:var(--forest);
+    font:700 12px/1.2 var(--sans);
+    text-align:center;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .hero-row,
+  .page-title-row{
+    margin-top:8px;
+  }
+}
+
+@media(max-width:390px){
+  .period-controls{
+    min-width:132px;
+    max-width:47vw!important;
+  }
+  .period-picker{
+    font-size:11px;
+  }
+}
+
+body[data-theme="heritage"] .period-controls{
+  background:rgba(18,27,41,.78);
+  border-color:rgba(216,168,90,.26);
+}
+body[data-theme="heritage"] .period-controls .icon-btn{
+  background:rgba(29,39,54,.92);
+  border-color:rgba(216,168,90,.28);
+  color:#f6efe3;
+}
+body[data-theme="heritage"] .period-picker{
+  color:#f6efe3;
+}
+body[data-theme="rainbow"] .period-controls{
+  background:linear-gradient(#fffefa,#fffefa) padding-box,linear-gradient(135deg,var(--chart-a),var(--chart-d),var(--chart-e)) border-box;
+  border:1px solid transparent;
+}
