@@ -33,4 +33,4 @@ TallyHo is a planning tool and does not connect to or move money from financial 
 budget, bills, weekly budget, biweekly budget, spending, savings, debt, paycheck, planner, money
 
 ## Review notes draft
-Use the supplied App Review demo account to test all Premium features. The app supports account deletion in Settings. Premium is purchased through Apple in-app purchase and can be restored from the Premium screen.
+No shared login credentials are required. Reviewers can create a local profile on the device. The app supports account deletion in Settings, and Premium purchases can be tested and restored through Apple's review environment.

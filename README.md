@@ -14,7 +14,6 @@ This package converts the existing TallyHo budgeting PWA into a Capacitor-ready 
 - In-app logout and account deletion
 - Capacitor 8 project configuration
 - 192px, 512px, and 1024px app icons
-- Demo account with sample budget data
 
 ## Important production boundary
 
@@ -36,7 +35,7 @@ npm run serve
 
 Open `http://localhost:4173`.
 
-Use `demo@tallyho.app` with password `FronzAndLillian!` to load a Premium demo with sample entries.
+Create a local profile in the app to test the budgeting flow. App Review instructions should be provided privately through App Store Connect.
 
 ## Create the iOS project
 
@@ -93,7 +92,7 @@ These are launch suggestions only. Final prices are configured in App Store Conn
 - Privacy Policy URL and support URL
 - App privacy questionnaire
 - Account deletion available in app
-- Working demo account for App Review
+- Private App Review instructions in App Store Connect
 - In-app purchases attached to the submitted version
 - Subscription terms and restore-purchase button
 - Screenshots for every required device size
