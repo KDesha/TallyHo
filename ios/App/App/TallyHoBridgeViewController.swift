@@ -4,6 +4,8 @@ import Capacitor
 class TallyHoBridgeViewController: CAPBridgeViewController {
     override func capacitorDidLoad() {
         super.capacitorDidLoad()
-        bridge?.registerPluginType(TallyHoBiometricPlugin.self)
+        bridge?.registerPluginInstance(TallyHoBiometricPlugin())
+        bridge?.registerPluginInstance(TallyHoStorePlugin())
+        print("⚡️ TallyHo native plugins registered")
     }
 }
