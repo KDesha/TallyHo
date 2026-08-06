@@ -8,8 +8,6 @@ const LEGACY_APP_KEY='sprig-budget-v1';
 const DEFAULTS={settings:{cadence:'monthly',purchaseGuardPercent:15,categories:['Housing','Bills','Debt','Groceries','Gas','Food & Takeout','Entertainment','Health','Pets','Personal','Other'],savingsFunds:['Emergency fund'],startingBalance:0,theme:'classic'},entries:[],debts:[],buyHistory:[]};
 const PALETTE=['#5f806b','#c98368','#d0aa69','#7fa4a7','#9c83a9','#bd8b7c','#88996c','#8490af'];
 const THEMES={classic:'Classic',blush:'Blush',heritage:'Heritage',rainbow:'Rainbow'};
-const DEMO_EMAIL='demo@tallyho.app';
-const DEMO_PASSWORD='Fire$e@L64280';
 const STORE_PRODUCT_IDS={monthly:'com.kayladeshasier.tallyho.premium.month',yearly:'com.kayladeshasier.tallyho.premium.annually'};
 let state=loadState();
 let selectedPurchasePlan='monthly';
@@ -337,7 +335,6 @@ async function handleProfileUpdate(event){
   const oldEmail=String(user.email||'').toLowerCase(),email=$('#profileEmail').value.trim().toLowerCase(),name=$('#profileName').value.trim(),currentPassword=$('#profileCurrentPassword').value,newPassword=$('#profileNewPassword').value,confirmPassword=$('#profileConfirmPassword').value;
   if(!name||!email)return toast('Add both a name and email.');
   const sensitiveChange=email!==oldEmail||!!newPassword;
-  if(user.email===DEMO_EMAIL&&sensitiveChange)return toast('The demo email and password are managed by the app publisher.');
   if(newPassword&&newPassword.length<6)return toast('Use at least 6 characters for the new password.');
   if(newPassword!==confirmPassword)return toast('The new passwords do not match.');
   if(sensitiveChange&&await hashPassword(currentPassword)!==user.passwordHash)return toast('Enter your current password to change email or password.');
@@ -601,8 +598,6 @@ async function loginWithDeviceAuth(){
   }catch(err){toast(err?.message||'Device unlock was canceled.')}
 }
 async function hashPassword(value){const data=new TextEncoder().encode(String(value));const digest=await crypto.subtle.digest('SHA-256',data);return [...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('')}
-function buildDemoState(){const demo=structuredClone(DEFAULTS),today=startOfDay(new Date()),monthStart=new Date(today.getFullYear(),today.getMonth(),1,12);demo.settings={...demo.settings,cadence:'biweekly',theme:'classic'};demo.entries=[{id:uid(),type:'income',name:'Paycheck',amount:2850,date:dateISO(addDays(monthStart,4)),repeat:{every:2,unit:'weeks'},account:'Checking'},{id:uid(),type:'payment',name:'Rent',amount:1200,date:dateISO(addDays(monthStart,1)),repeat:{every:1,unit:'months'},category:'Housing'},{id:uid(),type:'payment',name:'Car payment',amount:540,date:dateISO(addDays(monthStart,12)),repeat:{every:1,unit:'months'},category:'Debt'},{id:uid(),type:'payment',name:'Groceries',amount:135,date:dateISO(addDays(today,2)),repeat:{every:1,unit:'weeks'},category:'Groceries'},{id:uid(),type:'payment',name:'Health insurance',amount:300,date:dateISO(addDays(monthStart,6)),repeat:{every:1,unit:'months'},category:'Health'},{id:uid(),type:'payment',name:'Pet supplies',amount:200,date:dateISO(addDays(monthStart,14)),repeat:{every:1,unit:'months'},category:'Pets'},{id:uid(),type:'savings',name:'Emergency fund',amount:100,date:dateISO(addDays(monthStart,6)),repeat:{every:2,unit:'weeks'},savingsFund:'Emergency fund'}];return demo}
-async function ensureDemoAccount(){const users=authUsers(),passwordHash=await hashPassword(DEMO_PASSWORD);users[DEMO_EMAIL]={...(users[DEMO_EMAIL]||{}),name:'Demo Ranger',email:DEMO_EMAIL,passwordHash,plan:'premium',createdAt:users[DEMO_EMAIL]?.createdAt||new Date().toISOString(),onboardingComplete:true};setAuthUsers(users);const key=userKey(DEMO_EMAIL);if(!localStorage.getItem(key)){localStorage.setItem(key,JSON.stringify(buildDemoState()))}}
 function activateSession(email){localStorage.setItem(SESSION_KEY,String(email).toLowerCase());APP_KEY=userKey(email);if(!localStorage.getItem(APP_KEY)&&!localStorage.getItem('tallyho-v3-migrated')){const old=localStorage.getItem('tallyho-budget-v2')||localStorage.getItem(LEGACY_APP_KEY);if(old){localStorage.setItem(APP_KEY,old);localStorage.setItem('tallyho-v3-migrated','1')}}state=loadState();normalizeState();ui.planView=state.settings.cadence==='monthly'?'both':state.settings.cadence;save();showAuthenticated();renderAll();refreshPremiumEntitlement();if(needsOnboarding())showOnboarding();else go('home')}
 function showAuthenticated(){const logged=!!currentUser();const gate=$('#authGate'),shell=$('#appShell'),onboarding=$('#onboardingGate');if(gate)gate.hidden=logged;if(shell)shell.hidden=!logged;if(onboarding&&!logged)onboarding.hidden=true;document.body.classList.toggle('signed-in',logged);renderDeviceAuth()}
 function renderAccount(){const user=currentUser();if(!user){renderDeviceAuth();return}const name=user.name||user.email.split('@')[0];$('#accountName').textContent=name;$('#accountInitial').textContent=name.slice(0,1).toUpperCase();$('#settingsUserName').textContent=name;$('#settingsUserEmail').textContent=`${user.email} · ${isPremium()?'Premium member':'Free plan'}`;$$('[data-premium-feature]').forEach(el=>el.classList.toggle('locked',!isPremium()));renderDeviceAuth()}
@@ -627,13 +622,6 @@ async function handleResetPassword(ev){
   const email=$('#resetEmail').value.trim().toLowerCase(),password=$('#resetPassword').value,confirm=$('#resetConfirm').value;
   if(password.length<6)return toast('Use at least 6 characters.');
   if(password!==confirm)return toast('Those passwords do not match.');
-  if(email===DEMO_EMAIL){
-    await ensureDemoAccount();
-    closeResetPassword();
-    $('#loginEmail').value=DEMO_EMAIL;
-    $('#loginPassword').value='';
-    return toast('The demo password is managed by the app publisher.');
-  }
   const users=authUsers(),user=users[email];
   if(!user)return toast('No local account was found for that email.');
   users[email]={...user,passwordHash:await hashPassword(password),updatedAt:new Date().toISOString()};
@@ -645,7 +633,6 @@ async function handleResetPassword(ev){
 }
 function initAuth(){
   showAuthenticated();
-  ensureDemoAccount().catch(()=>{});
   $$('[data-auth-tab]').forEach(button=>button.onclick=()=>{$$('[data-auth-tab]').forEach(b=>b.classList.toggle('active',b===button));$('#loginForm').hidden=button.dataset.authTab!=='login';$('#signupForm').hidden=button.dataset.authTab!=='signup'});
   $('#forgotPassword').onclick=openResetPassword;
   $('#deviceAuthLogin').onclick=loginWithDeviceAuth;
@@ -655,7 +642,6 @@ function initAuth(){
   $('#loginForm').addEventListener('submit',async e=>{
     e.preventDefault();
     const email=$('#loginEmail').value.trim().toLowerCase(),password=$('#loginPassword').value,typedHash=await hashPassword(password);
-    if(email===DEMO_EMAIL)await ensureDemoAccount();
     const users=authUsers(),user=users[email];
     if(!user||user.passwordHash!==typedHash)return toast('That email or password does not match.');
     activateSession(email);
@@ -690,7 +676,7 @@ async function loadStoreProducts(force=false){
 }
 function applyStoreEntitlement(result){
   const user=currentUser();
-  if(!user||user.email===DEMO_EMAIL)return !!result?.active;
+  if(!user)return !!result?.active;
   const users=authUsers(),active=!!result?.active,productIdentifier=result?.productIdentifier||'';
   users[user.email]={...users[user.email],plan:active?'premium':'free',subscription:active?(result?.plan||storePlanFromProduct(productIdentifier)):null,storeProductIdentifier:active?productIdentifier:null,storeManaged:true,updatedAt:new Date().toISOString()};
   setAuthUsers(users);

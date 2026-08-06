@@ -40,8 +40,4 @@ budget, bills, weekly budget, biweekly budget, spending, savings, debt, paycheck
 - Copyright: 2026 Kayla DeShasier
 
 ## Review notes draft
-Demo profile for App Review:
-- Email: demo@tallyho.app
-- Password: Fire$e@L64280
-
-This profile includes sample budget data and access to all Premium features so the reviewer can evaluate the complete experience without making a purchase. Profiles and budget data are stored locally on the device and can be deleted in Settings. New subscriptions are purchased through Apple in-app purchase and existing purchases can be restored from the Premium screen. TallyHo does not connect to bank accounts, initiate transactions, or move money.
+No shared login credentials are required. Reviewers can create a local profile on the device. Profiles and budget data are stored locally and can be deleted in Settings. Premium purchases can be tested and restored through Apple's review environment. TallyHo does not connect to bank accounts, initiate transactions, or move money.
