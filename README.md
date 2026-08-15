@@ -56,6 +56,10 @@ In Xcode:
 - `com.kayladeshasier.tallyho.premium.month` — $4.99/month
 - `com.kayladeshasier.tallyho.premium.annually` — $39.99/year
 
+The native entitlement bridge also recognizes `com.kayladeshasier.tallyho.premium.lifetime` as a non-consumable, permanent Premium entitlement. It is intentionally omitted from the in-app product list and purchase flow so it can only be obtained through a private App Store offer code and cannot appear as a customer-facing purchase button.
+
+The App Review demo profile is created locally with sample planning data and fixed review credentials, but it starts on the Free plan. Reviewers use the same StoreKit purchase and restore flow as every customer; Premium always requires a verified subscription or lifetime App Store transaction. Build 4 also removes the legacy review-only Premium entitlement from devices upgraded from build 3.
+
 These are launch suggestions only. Final prices are configured in App Store Connect and displayed from StoreKit in production rather than hard-coded.
 
 ## Free and Premium structure

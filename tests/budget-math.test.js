@@ -38,23 +38,142 @@ function appContext() {
   return expression => vm.runInContext(expression, context);
 }
 
+test('clean installs seed a Free App Review demo with sample budget data', () => {
+  const evaluate = appContext();
+  evaluate('ensureReviewDemoProfile()');
+  const profile = JSON.parse(evaluate('JSON.stringify(authUsers()[REVIEW_DEMO_EMAIL])'));
+  const demoState = JSON.parse(evaluate('localStorage.getItem(userKey(REVIEW_DEMO_EMAIL))'));
+  assert.equal(profile.email, 'demo@tallyho.app');
+  assert.equal(profile.plan, 'free');
+  assert.equal(profile.reviewAccess, false);
+  assert.equal(profile.storeManaged, true);
+  assert.equal(profile.subscription, null);
+  assert.ok(demoState.entries.length >= 5);
+  assert.ok(demoState.debts.length >= 1);
+});
+
+test('build 4 removes the legacy review-only Premium bypass', () => {
+  const evaluate = appContext();
+  const profile = JSON.parse(evaluate(`JSON.stringify((()=>{
+    setAuthUsers({[REVIEW_DEMO_EMAIL]:{
+      email:REVIEW_DEMO_EMAIL,
+      passwordHash:REVIEW_DEMO_PASSWORD_HASH,
+      plan:'premium',
+      subscription:'review',
+      storeManaged:false,
+      reviewAccess:true
+    }});
+    ensureReviewDemoProfile();
+    return authUsers()[REVIEW_DEMO_EMAIL];
+  })())`));
+  assert.equal(profile.plan, 'free');
+  assert.equal(profile.subscription, null);
+  assert.equal(profile.storeProductIdentifier, null);
+  assert.equal(profile.storeManaged, true);
+  assert.equal(profile.reviewAccess, false);
+});
+
+test('verified StoreKit Premium survives demo-profile refreshes', () => {
+  const evaluate = appContext();
+  const profile = JSON.parse(evaluate(`JSON.stringify((()=>{
+    setAuthUsers({[REVIEW_DEMO_EMAIL]:{
+      email:REVIEW_DEMO_EMAIL,
+      passwordHash:REVIEW_DEMO_PASSWORD_HASH,
+      plan:'premium',
+      subscription:'lifetime',
+      storeProductIdentifier:STORE_PRODUCT_IDS.lifetime,
+      storeManaged:true,
+      reviewAccess:false
+    }});
+    ensureReviewDemoProfile();
+    return authUsers()[REVIEW_DEMO_EMAIL];
+  })())`));
+  assert.equal(profile.plan, 'premium');
+  assert.equal(profile.subscription, 'lifetime');
+  assert.equal(profile.storeProductIdentifier, 'com.kayladeshasier.tallyho.premium.lifetime');
+  assert.equal(profile.storeManaged, true);
+});
+
+test('the App Review demo follows StoreKit entitlement results', () => {
+  const evaluate = appContext();
+  const profiles = JSON.parse(evaluate(`JSON.stringify((()=>{
+    ensureReviewDemoProfile();
+    localStorage.setItem(SESSION_KEY,REVIEW_DEMO_EMAIL);
+    renderAll=()=>{};
+    applyStoreEntitlement({active:false});
+    const withoutEntitlement={...currentUser()};
+    applyStoreEntitlement({active:true,plan:'monthly',productIdentifier:STORE_PRODUCT_IDS.monthly});
+    return{withoutEntitlement,withEntitlement:currentUser()};
+  })())`));
+  assert.equal(profiles.withoutEntitlement.plan, 'free');
+  assert.equal(profiles.withoutEntitlement.subscription, null);
+  assert.equal(profiles.withoutEntitlement.storeManaged, true);
+  assert.equal(profiles.withEntitlement.plan, 'premium');
+  assert.equal(profiles.withEntitlement.subscription, 'monthly');
+  assert.equal(profiles.withEntitlement.storeProductIdentifier, 'com.kayladeshasier.tallyho.premium.month');
+  assert.equal(profiles.withEntitlement.storeManaged, true);
+});
+
 test('monthly split shares use exact four-week and two-paycheck math', () => {
   const evaluate = appContext();
   assert.equal(evaluate(`splitReserveAmount({amount:800,repeat:{every:1,unit:'months'}},'weekly',new Date(2026,7,1,12))`), 200);
   assert.equal(evaluate(`splitReserveAmount({amount:800,repeat:{every:1,unit:'months'}},'biweekly',new Date(2026,7,1,12))`), 400);
 });
 
-test('split distributions preserve every cent of the bill', () => {
+test('cash-aware split distributions preserve every cent and use separate pay windows', () => {
   const evaluate = appContext();
-  const result = JSON.parse(evaluate(`JSON.stringify(splitMonthRows({
-    id:'bill',type:'payment',name:'Bill',amount:800,date:'2026-08-10',
-    repeat:{every:1,unit:'months'},splitPlan:{enabled:true,cadence:'biweekly'}
-  },new Date(2026,7,1,12)).map(row=>({amount:row.amount,date:row.occurrenceDate})))`));
+  evaluate(`state={settings:{...DEFAULTS.settings,startingBalance:0},entries:[
+    {id:'pay',type:'income',name:'Pay',amount:1000,date:'2026-08-01',repeat:null},
+    {id:'bill',type:'payment',name:'Bill',amount:800.01,date:'2026-08-10',repeat:null,splitPlan:{enabled:true,cadence:'biweekly'}}
+  ],debts:[],buyHistory:[]};normalizeState()`);
+  const result = JSON.parse(evaluate(`JSON.stringify(splitReserveRows(
+    new Date(2026,7,1,12),new Date(2026,8,1,12)
+  ).map(row=>({amount:row.amount,date:row.occurrenceDate})))`));
   assert.deepEqual(result, [
-    { amount: 400, date: '2026-08-01' },
-    { amount: 400, date: '2026-08-15' }
+    { amount: 400.01, date: '2026-08-07' },
+    { amount: 400, date: '2026-08-23' }
   ]);
-  assert.equal(result.reduce((sum, row) => sum + row.amount, 0), 800);
+  assert.equal(result.reduce((sum, row) => sum + row.amount, 0), 800.01);
+  assert.equal(new Set(result.map(row => row.date)).size, 2);
+});
+
+test('end-of-month money carries forward, including income shifted off the first', () => {
+  const evaluate = appContext();
+  evaluate(`state={settings:{...DEFAULTS.settings,startingBalance:100},entries:[
+    {id:'bill',type:'payment',name:'July bill',amount:250,date:'2026-07-30',repeat:null},
+    {id:'pay',type:'income',name:'First-of-month pay',amount:1000,date:'2026-08-01',repeat:null},
+    {id:'august',type:'payment',name:'August bill',amount:300,date:'2026-08-20',repeat:null}
+  ],debts:[],buyHistory:[]};normalizeState()`);
+  assert.equal(evaluate(`cashBalanceBefore(new Date(2026,7,1,12))`), 850);
+  assert.equal(evaluate(`cashBalanceBefore(new Date(2026,8,1,12))`), 550);
+});
+
+test('recommended split dates keep every projected August week non-negative when funds allow', () => {
+  const evaluate = appContext();
+  evaluate(`state={settings:{...DEFAULTS.settings,startingBalance:0},entries:[
+    {id:'pay',type:'income',name:'Pay',amount:1000,date:'2026-08-01',repeat:null},
+    {id:'bill',type:'payment',name:'Bill',amount:800,date:'2026-08-10',repeat:null,splitPlan:{enabled:true,cadence:'biweekly'}}
+  ],debts:[],buyHistory:[]};normalizeState()`);
+  const balances = JSON.parse(evaluate(`JSON.stringify((()=>{
+    const month=new Date(2026,7,1,12);let running=cashBalanceBefore(month);
+    return moneyMapWeekRanges(month).map(range=>{running=cents(running+splitCashSummary(range.start,range.end).net);return running});
+  })())`));
+  assert.deepEqual(balances, [1000, 600, 600, 600, 200, 200]);
+  assert.ok(balances.every(balance => balance >= 0));
+});
+
+test('cash-aware scheduling staggers multiple bill splits instead of stacking them on the first', () => {
+  const evaluate = appContext();
+  evaluate(`state={settings:{...DEFAULTS.settings,startingBalance:0},entries:[
+    {id:'pay',type:'income',name:'Pay',amount:2000,date:'2026-08-01',repeat:null},
+    {id:'a',type:'payment',name:'A',amount:800,date:'2026-08-10',repeat:null,splitPlan:{enabled:true,cadence:'biweekly'}},
+    {id:'b',type:'payment',name:'B',amount:600,date:'2026-08-11',repeat:null,splitPlan:{enabled:true,cadence:'biweekly'}}
+  ],debts:[],buyHistory:[]};normalizeState()`);
+  const dates = JSON.parse(evaluate(`JSON.stringify(splitReserveRows(
+    new Date(2026,7,1,12),new Date(2026,8,1,12)
+  ).map(row=>row.occurrenceDate))`));
+  assert.equal(new Set(dates).size, 4);
+  assert.ok(dates.every(date => date !== '2026-08-01'));
 });
 
 test('August 2026 calendar map clips the first and last weeks to the month', () => {

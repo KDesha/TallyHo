@@ -8,7 +8,9 @@ const LEGACY_APP_KEY='sprig-budget-v1';
 const DEFAULTS={settings:{cadence:'monthly',purchaseGuardPercent:15,categories:['Housing','Bills','Debt','Groceries','Gas','Food & Takeout','Entertainment','Health','Pets','Personal','Other'],savingsFunds:['Emergency fund'],startingBalance:0,theme:'classic'},entries:[],debts:[],buyHistory:[]};
 const PALETTE=['#5f806b','#c98368','#d0aa69','#7fa4a7','#9c83a9','#bd8b7c','#88996c','#8490af'];
 const THEMES={classic:'Classic',blush:'Blush',heritage:'Heritage',rainbow:'Rainbow'};
-const STORE_PRODUCT_IDS={monthly:'com.kayladeshasier.tallyho.premium.month',yearly:'com.kayladeshasier.tallyho.premium.annually'};
+const STORE_PRODUCT_IDS={monthly:'com.kayladeshasier.tallyho.premium.month',yearly:'com.kayladeshasier.tallyho.premium.annually',lifetime:'com.kayladeshasier.tallyho.premium.lifetime'};
+const REVIEW_DEMO_EMAIL='demo@tallyho.app';
+const REVIEW_DEMO_PASSWORD_HASH='ae3f827fb68b876cec2a35da9e275b8af205d9c8b813aac9da3f07c69e32db0d';
 let state=loadState();
 let selectedPurchasePlan='monthly';
 let storeProducts={};
@@ -77,6 +79,14 @@ function occurrences(entry,start,end){
 }
 function planned(start,end,{undated=false}={}){const dated=state.entries.flatMap(e=>occurrences(e,start,end));const extra=undated?state.entries.filter(e=>!e.date).map(e=>({...e,occurrence:start,occurrenceDate:dateISO(start),unscheduled:true})):[];return [...dated,...extra].sort((a,b)=>a.occurrence-b.occurrence||sortByName(a.name,b.name))}
 function summary(start,end,opts){const items=planned(start,end,opts),t=totals(items);return{items,...t,outflow:cents(t.payments+t.savings),net:cents(t.income-t.payments-t.savings)}}
+function balanceAnchorBefore(reference){
+  const end=startOfDay(reference),dates=state.entries.map(entry=>{const first=parseDate(entry.date);return first?effectiveBusinessDate(entry,first):null}).filter(date=>date&&date<end);
+  return dates.length?new Date(Math.min(...dates.map(Number))):end;
+}
+function cashBalanceBefore(reference){
+  const end=startOfDay(reference),anchor=balanceAnchorBefore(end),opening=Number(state.settings.startingBalance)||0;
+  return cents(opening+(anchor<end?summary(anchor,end).net:0));
+}
 function monthEnd(d){return new Date(d.getFullYear(),d.getMonth()+1,1,12)}
 function monthShort(d){return formatDate(d,{month:'short'})}
 function sumBy(items,keyFn,valueFn=x=>Number(x.amount)||0){return items.reduce((out,item)=>{const key=keyFn(item)||'Other';out[key]=cents((out[key]||0)+valueFn(item));return out},{})}
@@ -100,7 +110,7 @@ function currentHomePeriod(){return homePeriodFor(new Date(),state.settings.cade
 function currentWeekPeriod(){return homePeriodFor(new Date(),'weekly')}
 function renderTop(){const p=currentHomePeriod();$('#periodKindLabel').textContent=p.kind;$('#periodLabel').textContent=p.label}
 function renderHome(){
-  const p=currentHomePeriod(),s=summary(p.start,p.end,{undated:true}),balance=s.net;
+  const p=currentHomePeriod(),s=summary(p.start,p.end,{undated:true}),carried=cashBalanceBefore(p.start),balance=cents(carried+s.net);
   $('#kpiSavingsTitle').textContent=`Saved ${p.phrase}`;
   $('#cashFlowHeading').textContent=`Where ${p.phrase} is going`;
   $('#allocationEyebrow').textContent=p.eyebrow;
@@ -110,7 +120,7 @@ function renderHome(){
   $('#kpiSavings').textContent=money(s.savings);
   $('#incomeSub').textContent=s.income?`${s.items.filter(i=>i.type==='income').length} scheduled item(s)`:'add income to begin';
   $('#outflowSub').textContent=s.payments?`${s.items.filter(i=>i.type==='payment').length} payment(s) + savings`:'nothing scheduled yet';
-  $('#balanceSub').textContent=balance>=0?'money not already spoken for':'more planned than income';
+  $('#balanceSub').textContent=carried?`${money(carried)} carried in from before ${p.phrase}`:balance>=0?'money not already spoken for':'more planned than income';
   $('#savingsSub').textContent=s.savings?`${state.settings.savingsFunds.length} fund(s) available`:'create a fund in settings';
   const cats={};
   s.items.filter(i=>i.type==='payment').forEach(i=>cats[i.category||'Other']=(cats[i.category||'Other']||0)+i.amount);
@@ -335,6 +345,7 @@ async function handleProfileUpdate(event){
   const oldEmail=String(user.email||'').toLowerCase(),email=$('#profileEmail').value.trim().toLowerCase(),name=$('#profileName').value.trim(),currentPassword=$('#profileCurrentPassword').value,newPassword=$('#profileNewPassword').value,confirmPassword=$('#profileConfirmPassword').value;
   if(!name||!email)return toast('Add both a name and email.');
   const sensitiveChange=email!==oldEmail||!!newPassword;
+  if(isReviewDemoUser(user)&&sensitiveChange)return toast('The App Review demo email and password are managed by the app publisher.');
   if(newPassword&&newPassword.length<6)return toast('Use at least 6 characters for the new password.');
   if(newPassword!==confirmPassword)return toast('The new passwords do not match.');
   if(sensitiveChange&&await hashPassword(currentPassword)!==user.passwordHash)return toast('Enter your current password to change email or password.');
@@ -420,19 +431,49 @@ function exactShares(amount,count){
   const total=Math.round((Number(amount)||0)*100),base=Math.floor(total/count),remainder=total-base*count;
   return Array.from({length:count},(_,index)=>(base+(index<remainder?1:0))/100);
 }
-function splitMonthRows(entry,monthStart){
-  const end=monthEnd(monthStart),occurrenceRows=entry.date?occurrences(entry,monthStart,end):[{...entry,occurrence:monthStart,occurrenceDate:dateISO(monthStart),unscheduled:true}],cadence=entry.splitPlan.cadence,count=cadence==='biweekly'?2:4,offset=cadence==='biweekly'?14:7,rows=[];
-  occurrenceRows.forEach((source,sourceIndex)=>{
-    exactShares(source.amount,count).forEach((amount,index)=>{
-      const occurrence=addDays(monthStart,index*offset);if(occurrence>=end)return;
-      rows.push({id:`split_${entry.id}_${dateISO(monthStart)}_${sourceIndex}_${index}`,type:'payment',amount,name:`Set aside: ${entry.name}`,category:'Split reserve',occurrence,occurrenceDate:dateISO(occurrence),isReserve:true,sourceEntryId:entry.id});
-    });
-  });
-  return rows;
+function splitPlanningWindows(monthStart,cadence){
+  const end=monthEnd(monthStart),count=cadence==='biweekly'?2:4,step=cadence==='biweekly'?14:7;
+  return Array.from({length:count},(_,index)=>({index,start:addDays(monthStart,index*step),end:index===count-1?end:addDays(monthStart,(index+1)*step)}));
 }
+function projectedCashScore(start,end,opening,items){
+  const changes={};
+  items.forEach(item=>{const key=dateISO(item.occurrence),amount=item.type==='income'?Number(item.amount)||0:-(Number(item.amount)||0);changes[key]=cents((changes[key]||0)+amount)});
+  let running=cents(opening),minimum=running,negativeDays=0,deficit=0;
+  for(let day=start;day<end;day=addDays(day,1)){
+    running=cents(running+(changes[dateISO(day)]||0));minimum=Math.min(minimum,running);
+    if(running<0){negativeDays++;deficit=cents(deficit-running)}
+  }
+  return{minimum:cents(minimum),negativeDays,deficit};
+}
+function recommendedReserveDate(window,amount,monthStart,monthFinish,opening,baseItems,scheduledRows){
+  const target=addDays(window.start,Math.floor(Math.max(0,diffDays(window.start,window.end)-1)/2)),incomeDates=new Set(baseItems.filter(item=>item.type==='income').map(item=>item.occurrenceDate));
+  const candidates=[];
+  for(let date=window.start;date<window.end;date=addDays(date,1)){
+    const occurrence=startOfDay(date),candidate={type:'payment',amount,occurrence,occurrenceDate:dateISO(occurrence)},score=projectedCashScore(monthStart,monthFinish,opening,[...baseItems,...scheduledRows,candidate]);
+    const load=cents(scheduledRows.filter(row=>row.occurrenceDate===candidate.occurrenceDate).reduce((sum,row)=>sum+row.amount,0));
+    candidates.push({occurrence,score,load,income:incomeDates.has(candidate.occurrenceDate),distance:Math.abs(diffDays(target,occurrence))});
+  }
+  candidates.sort((a,b)=>a.score.negativeDays-b.score.negativeDays||a.score.deficit-b.score.deficit||b.score.minimum-a.score.minimum||a.load-b.load||Number(b.income)-Number(a.income)||a.distance-b.distance||a.occurrence-b.occurrence);
+  return candidates[0]?.occurrence||window.start;
+}
+function recommendedSplitMonthRows(monthStart,activeEntries){
+  const monthFinish=monthEnd(monthStart),activeIds=new Set(activeEntries.map(entry=>entry.id)),baseItems=planned(monthStart,monthFinish).filter(item=>!activeIds.has(item.id)),opening=cashBalanceBefore(monthStart),specs=[];
+  activeEntries.forEach(entry=>{
+    const cadence=entry.splitPlan.cadence,windows=splitPlanningWindows(monthStart,cadence),sources=entry.date?occurrences(entry,monthStart,monthFinish):[{...entry,occurrence:monthStart,occurrenceDate:dateISO(monthStart),unscheduled:true}];
+    sources.forEach((source,sourceIndex)=>exactShares(source.amount,windows.length).forEach((amount,index)=>specs.push({entry,source,sourceIndex,index,amount,window:windows[index]})));
+  });
+  specs.sort((a,b)=>a.window.start-b.window.start||b.amount-a.amount||sortByName(a.entry.name,b.entry.name));
+  return specs.reduce((rows,spec)=>{
+    const occurrence=recommendedReserveDate(spec.window,spec.amount,monthStart,monthFinish,opening,baseItems,rows),sourceDate=spec.source.scheduledOccurrenceDate||spec.source.occurrenceDate;
+    rows.push({id:`split_${spec.entry.id}_${sourceDate}_${spec.index}`,type:'payment',amount:spec.amount,name:`Set aside: ${spec.entry.name}`,category:'Split reserve',occurrence,occurrenceDate:dateISO(occurrence),isReserve:true,isRecommended:true,sourceEntryId:spec.entry.id});
+    return rows;
+  },[]).sort((a,b)=>a.occurrence-b.occurrence||sortByName(a.name,b.name));
+}
+function splitMonthRows(entry,monthStart){return recommendedSplitMonthRows(monthStart,[entry]).filter(row=>row.sourceEntryId===entry.id)}
 function splitReserveRows(start,end){
   const rows=[];let month=new Date(start.getFullYear(),start.getMonth(),1,12),guard=0;
-  while(month<end&&guard++<120){state.entries.filter(splitIsActive).forEach(entry=>rows.push(...splitMonthRows(entry,month)));month=addMonths(month,1)}
+  const active=state.entries.filter(splitIsActive);
+  while(month<end&&guard++<120){rows.push(...recommendedSplitMonthRows(month,active));month=addMonths(month,1)}
   return rows.filter(row=>row.occurrence>=start&&row.occurrence<end);
 }
 function splitCashSummary(start,end,opts={}){
@@ -469,23 +510,24 @@ function transactionExpander(items,label='transactions'){
 }
 function renderWeekly(){
   const monthStart=new Date(ui.moneyMapDate.getFullYear(),ui.moneyMapDate.getMonth(),1,12),monthFinish=monthEnd(monthStart),weeklyRanges=moneyMapWeekRanges(monthStart),biweeklyRanges=moneyMapBiweekRanges(monthStart);
-  let weeklyRunning=Number(state.settings.startingBalance)||0;
+  const carried=cashBalanceBefore(monthStart);
+  let weeklyRunning=carried;
   const weeks=weeklyRanges.map((range,index)=>{const data=splitCashSummary(range.start,range.end,{undated:index===0});weeklyRunning=cents(weeklyRunning+data.net);return{...range,...data,after:weeklyRunning}});
-  let biweeklyRunning=Number(state.settings.startingBalance)||0;
+  let biweeklyRunning=carried;
   const biweeks=biweeklyRanges.map((range,index)=>{const data=splitCashSummary(range.start,range.end,{undated:index===0});biweeklyRunning=cents(biweeklyRunning+data.net);return{...range,...data,after:biweeklyRunning}});
   const monthSummary=splitCashSummary(monthStart,monthFinish,{undated:true});
   $('#moneyMapMonthLabel').textContent=monthLabel(monthStart);$('#weeklyRangeLabel').textContent=`${dateLabel(monthStart)} - ${dateLabel(addDays(monthFinish,-1))}`;
-  $('#weeklyStartingBalance').textContent=money(state.settings.startingBalance);$('#weeklyIncomeTotal').textContent=money(monthSummary.income);$('#weeklyOutflowTotal').textContent=money(monthSummary.outflow);$('#weeklyAfterTotal').textContent=money(cents((Number(state.settings.startingBalance)||0)+monthSummary.net));
-  $('#weeklyOverview').innerHTML=weeks.map(week=>`<article class="weekly-card"><div class="weekly-card-head"><div><p class="eyebrow">WEEK ${week.index}${week.tag?` · <span class="week-edge-tag">(${week.tag})</span>`:''}</p><h2>${dateLabel(week.start)} - ${dateLabel(addDays(week.end,-1))}</h2></div><span class="weekly-net ${week.net<0?'negative':''}">${week.net>=0?'+':''}${money(week.net)}</span></div><div class="weekly-totals"><div><span>Income</span><strong>${money(week.income)}</strong></div><div><span>Cash-plan outflow</span><strong>${money(week.outflow)}</strong></div><div class="weekly-after ${week.after<0?'negative':''}"><span>Left after this week</span><strong>${money(week.after)}</strong></div></div>${transactionExpander(week.items)}</article>`).join('');
-  $('#biweeklyOverview').innerHTML=biweeks.map(period=>`<article class="biweekly-card"><div class="biweekly-card-head"><div><p class="eyebrow">BIWEEK ${period.index}${period.tag?` · <span class="week-edge-tag">(${period.tag})</span>`:''}</p><h2>${dateLabel(period.start)} - ${dateLabel(addDays(period.end,-1))}</h2></div><span class="weekly-net ${period.net<0?'negative':''}">${period.net>=0?'+':''}${money(period.net)}</span></div><div class="biweekly-metrics"><div><span>Income</span><strong>${money(period.income)}</strong></div><div><span>Cash-plan outflow</span><strong>${money(period.outflow)}</strong></div><div class="weekly-after ${period.after<0?'negative':''}"><span>Left after biweekly</span><strong>${money(period.after)}</strong></div></div>${transactionExpander(period.items)}</article>`).join('');
+  $('#weeklyStartingBalance').textContent=money(carried);$('#weeklyIncomeTotal').textContent=money(monthSummary.income);$('#weeklyOutflowTotal').textContent=money(monthSummary.outflow);$('#weeklyAfterTotal').textContent=money(cents(carried+monthSummary.net));
+  $('#weeklyOverview').innerHTML=weeks.map(week=>`<article class="weekly-card"><div class="weekly-card-head"><div><p class="eyebrow">WEEK ${week.index}${week.tag?` · <span class="week-edge-tag">(${week.tag})</span>`:''}</p><h2>${dateLabel(week.start)} - ${dateLabel(addDays(week.end,-1))}</h2></div><span class="weekly-net ${week.after<0?'negative':''}" title="Left after this week">${money(week.after)}</span></div><div class="weekly-totals"><div><span>Income</span><strong>${money(week.income)}</strong></div><div><span>Cash-plan outflow</span><strong>${money(week.outflow)}</strong></div><div class="weekly-after ${week.after<0?'negative':''}"><span>Left after this week</span><strong>${money(week.after)}</strong></div></div>${transactionExpander(week.items)}</article>`).join('');
+  $('#biweeklyOverview').innerHTML=biweeks.map(period=>`<article class="biweekly-card"><div class="biweekly-card-head"><div><p class="eyebrow">BIWEEK ${period.index}${period.tag?` · <span class="week-edge-tag">(${period.tag})</span>`:''}</p><h2>${dateLabel(period.start)} - ${dateLabel(addDays(period.end,-1))}</h2></div><span class="weekly-net ${period.after<0?'negative':''}" title="Left after this biweekly period">${money(period.after)}</span></div><div class="biweekly-metrics"><div><span>Income</span><strong>${money(period.income)}</strong></div><div><span>Cash-plan outflow</span><strong>${money(period.outflow)}</strong></div><div class="weekly-after ${period.after<0?'negative':''}"><span>Left after biweekly</span><strong>${money(period.after)}</strong></div></div>${transactionExpander(period.items)}</article>`).join('');
   const active=state.entries.filter(splitIsActive),negative=weeks.filter(week=>week.after<0);
-  const planNote=negative.length?`<strong>Heads up:</strong> the plan drops below zero in week ${negative[0].index}.`:active.length?`<strong>Cash-split plan active:</strong> ${active.map(entry=>`${esc(entry.name)} (${entry.splitPlan.cadence})`).join(', ')}.`:'';
+  const planNote=negative.length?`<strong>Heads up:</strong> even after carrying money forward and placing splits around cash flow, the plan drops below zero in week ${negative[0].index}.`:active.length?`<strong>Cash-split plan active:</strong> recommended dates are spread across the month for ${active.map(entry=>`${esc(entry.name)} (${entry.splitPlan.cadence})`).join(', ')}.`:'';
   $('#weeklyPlanNote').innerHTML=planNote;$('#weeklyPlanNote').hidden=!planNote;
   $('#weeklyOverview').hidden=ui.planView==='biweekly';$('.biweekly-section').hidden=ui.planView==='weekly';$$('[data-plan-view]').forEach(button=>button.classList.toggle('active',button.dataset.planView===ui.planView));
 }
 function renderCoach(){
   const controls=$('.coach-controls');
-  if(controls) controls.innerHTML=`<div class="coach-control-copy"><p class="eyebrow">SPLIT OPTIONS</p><h2>Payments over $500</h2><p>Monthly bills use four weekly shares or two biweekly shares.</p></div><div class="simple-coach-status"><span id="coachLargeCount">Checking payments...</span><button class="outline-btn" type="button" data-go="weekly">View monthly cash plan ↗</button></div>`;
+  if(controls) controls.innerHTML=`<div class="coach-control-copy"><p class="eyebrow">SPLIT OPTIONS</p><h2>Payments over $500</h2><p>Monthly bills use four weekly shares or two biweekly shares, placed around your income and other outflow.</p></div><div class="simple-coach-status"><span id="coachLargeCount">Checking payments...</span><button class="outline-btn" type="button" data-go="weekly">View monthly cash plan ↗</button></div>`;
   const all=state.entries.filter(e=>e.type==='payment'&&Number(e.amount)>500).sort((a,b)=>Number(b.amount)-Number(a.amount));
   $('#coachHeadline').textContent=all.length?'Payment split coach':'No payments over $500';
   $('#coachLargeCount').textContent=all.length?`${all.length} large payment${all.length===1?'':'s'} found`:'Nothing to split';
@@ -494,10 +536,11 @@ function renderCoach(){
   if(oldNotes) oldNotes.hidden=true;
   if(oldSpike) oldSpike.hidden=true;
   if(oldSchedule) oldSchedule.hidden=true;
+  const reference=new Date(ui.moneyMapDate.getFullYear(),ui.moneyMapDate.getMonth(),1,12),recommendedRows=splitReserveRows(reference,monthEnd(reference));
   $('#splitSuggestions').innerHTML=all.length?all.map(entry=>{
-    const reference=new Date(ui.moneyMapDate.getFullYear(),ui.moneyMapDate.getMonth(),1,12),weekly=splitReserveAmount(entry,'weekly',reference),biweekly=splitReserveAmount(entry,'biweekly',reference),active=splitIsActive(entry)?entry.splitPlan.cadence:null;
+    const weekly=splitReserveAmount(entry,'weekly',reference),biweekly=splitReserveAmount(entry,'biweekly',reference),active=splitIsActive(entry)?entry.splitPlan.cadence:null,dates=recommendedRows.filter(row=>row.sourceEntryId===entry.id).map(row=>dateLabel(row.occurrence));
     const schedule=entry.repeat?`Repeats every ${entry.repeat.every} ${entry.repeat.unit}`:entry.date?`Due ${dateLabel(parseDate(entry.date))}`:'No due date';
-    return `<article class="split-card ${active?'active-split':''}"><div class="split-card-title"><div><p class="eyebrow">${esc(entry.category||'PAYMENT')} · ${esc(schedule)}</p><h3>${esc(entry.name)}</h3><p>Full bill: <strong>${money(entry.amount)}</strong></p></div><span class="split-bill">${money(entry.amount)}</span></div><div class="split-options simple-split-options"><div><span>Weekly set-aside</span><strong>${money(weekly)}</strong><button class="split-apply ${active==='weekly'?'selected':''}" data-split-id="${esc(entry.id)}" data-split-cadence="weekly">${active==='weekly'?'Weekly plan active':'Use weekly plan'}</button></div><div><span>Biweekly set-aside</span><strong>${money(biweekly)}</strong><button class="split-apply ${active==='biweekly'?'selected':''}" data-split-id="${esc(entry.id)}" data-split-cadence="biweekly">${active==='biweekly'?'Biweekly plan active':'Use biweekly plan'}</button></div></div>${active?`<div class="split-active-row"><span>Currently smoothing this bill in your weekly map.</span><button class="split-remove" data-split-id="${esc(entry.id)}">Remove split</button></div>`:`<p class="split-tip">Choose one option to update the weekly cash plan.</p>`}</article>`;
+    return `<article class="split-card ${active?'active-split':''}"><div class="split-card-title"><div><p class="eyebrow">${esc(entry.category||'PAYMENT')} · ${esc(schedule)}</p><h3>${esc(entry.name)}</h3><p>Full bill: <strong>${money(entry.amount)}</strong></p></div><span class="split-bill">${money(entry.amount)}</span></div><div class="split-options simple-split-options"><div><span>Weekly set-aside</span><strong>${money(weekly)}</strong><button class="split-apply ${active==='weekly'?'selected':''}" data-split-id="${esc(entry.id)}" data-split-cadence="weekly">${active==='weekly'?'Weekly plan active':'Use weekly plan'}</button></div><div><span>Biweekly set-aside</span><strong>${money(biweekly)}</strong><button class="split-apply ${active==='biweekly'?'selected':''}" data-split-id="${esc(entry.id)}" data-split-cadence="biweekly">${active==='biweekly'?'Biweekly plan active':'Use biweekly plan'}</button></div></div>${active?`<div class="split-active-row"><span>${dates.length?`Recommended this month: ${dates.join(' · ')}`:'This bill has no occurrence in this month.'}</span><button class="split-remove" data-split-id="${esc(entry.id)}">Remove split</button></div>`:`<p class="split-tip">Choose one option and TallyHo will recommend separate dates that best fit the month.</p>`}</article>`;
   }).join(''):'<div class="empty-state">No payment over $500 exists yet. Add one when it is ready for its close-up.</div>';
   $$('.split-apply').forEach(button=>button.onclick=()=>applyLargeBillSplit(button.dataset.splitId,button.dataset.splitCadence));
   $$('.split-remove').forEach(button=>button.onclick=()=>applyLargeBillSplit(button.dataset.splitId,'remove'));
@@ -511,6 +554,31 @@ function sessionEmail(){return String(localStorage.getItem(SESSION_KEY)||'').toL
 function userKey(email){return `${BASE_APP_KEY}:${String(email||'guest').toLowerCase().replace(/[^a-z0-9@._-]/g,'_')}`}
 function currentUser(){return authUsers()[sessionEmail()]||null}
 function isPremium(){return currentUser()?.plan==='premium'}
+function isReviewDemoUser(user=currentUser()){return user?.email===REVIEW_DEMO_EMAIL}
+function reviewDemoState(){
+  const today=startOfDay(new Date()),month=new Date(today.getFullYear(),today.getMonth(),1,12);
+  return{
+    settings:{...DEFAULTS.settings,cadence:'weekly',startingBalance:875,purchaseGuardPercent:15},
+    entries:[
+      {id:'demo-paycheck',name:'Paycheck',type:'income',amount:2400,date:dateISO(addDays(month,4)),repeat:{every:2,unit:'weeks'}},
+      {id:'demo-rent',name:'Rent',type:'payment',amount:1350,date:dateISO(month),repeat:{every:1,unit:'months'},category:'Housing'},
+      {id:'demo-electric',name:'Electric',type:'payment',amount:145,date:dateISO(addDays(month,9)),repeat:{every:1,unit:'months'},category:'Bills'},
+      {id:'demo-groceries',name:'Groceries',type:'payment',amount:175,date:dateISO(addDays(month,6)),repeat:{every:1,unit:'weeks'},category:'Groceries'},
+      {id:'demo-savings',name:'Emergency fund',type:'savings',amount:100,date:dateISO(addDays(month,5)),repeat:{every:2,unit:'weeks'},category:'Emergency fund'},
+      {id:'demo-insurance',name:'Car insurance',type:'payment',amount:720,date:dateISO(addDays(month,24)),repeat:{every:6,unit:'months'},category:'Bills',splitPlan:{enabled:true,cadence:'weekly'}}
+    ],
+    debts:[{id:'demo-card',name:'Credit card',balance:2850,apr:19.99,minimum:95,extra:50}],
+    buyHistory:[]
+  };
+}
+function ensureReviewDemoProfile(){
+  const users=authUsers(),existing=users[REVIEW_DEMO_EMAIL]||{},now=new Date().toISOString();
+  const hadReviewBypass=existing.reviewAccess===true||existing.subscription==='review'||(existing.plan==='premium'&&existing.storeManaged!==true);
+  users[REVIEW_DEMO_EMAIL]={...existing,name:existing.name||'TallyHo Demo',email:REVIEW_DEMO_EMAIL,passwordHash:REVIEW_DEMO_PASSWORD_HASH,plan:hadReviewBypass?'free':existing.plan==='premium'?'premium':'free',subscription:hadReviewBypass?null:(existing.subscription||null),storeProductIdentifier:hadReviewBypass?null:(existing.storeProductIdentifier||null),storeManaged:true,reviewAccess:false,onboardingComplete:true,createdAt:existing.createdAt||now,updatedAt:now};
+  setAuthUsers(users);
+  const demoKey=userKey(REVIEW_DEMO_EMAIL);
+  if(!localStorage.getItem(demoKey))localStorage.setItem(demoKey,JSON.stringify(reviewDemoState()));
+}
 function deviceAuthPrefs(){try{return JSON.parse(localStorage.getItem(DEVICE_AUTH_KEY)||'{}')}catch{return{}}}
 function setDeviceAuthPrefs(prefs){localStorage.setItem(DEVICE_AUTH_KEY,JSON.stringify(prefs||{}))}
 function biometricPlugin(){return window.Capacitor?.Plugins?.TallyHoBiometric||window.TallyHoBiometric||null}
@@ -622,6 +690,13 @@ async function handleResetPassword(ev){
   const email=$('#resetEmail').value.trim().toLowerCase(),password=$('#resetPassword').value,confirm=$('#resetConfirm').value;
   if(password.length<6)return toast('Use at least 6 characters.');
   if(password!==confirm)return toast('Those passwords do not match.');
+  if(email===REVIEW_DEMO_EMAIL){
+    ensureReviewDemoProfile();
+    closeResetPassword();
+    $('#loginEmail').value=REVIEW_DEMO_EMAIL;
+    $('#loginPassword').value='';
+    return toast('The App Review demo password is managed by the app publisher.');
+  }
   const users=authUsers(),user=users[email];
   if(!user)return toast('No local account was found for that email.');
   users[email]={...user,passwordHash:await hashPassword(password),updatedAt:new Date().toISOString()};
@@ -632,6 +707,7 @@ async function handleResetPassword(ev){
   toast('Password reset. You can log in now.');
 }
 function initAuth(){
+  ensureReviewDemoProfile();
   showAuthenticated();
   $$('[data-auth-tab]').forEach(button=>button.onclick=()=>{$$('[data-auth-tab]').forEach(b=>b.classList.toggle('active',b===button));$('#loginForm').hidden=button.dataset.authTab!=='login';$('#signupForm').hidden=button.dataset.authTab!=='signup'});
   $('#forgotPassword').onclick=openResetPassword;
@@ -655,7 +731,7 @@ function deleteCurrentAccount(){const user=currentUser();if(!user)return;if(!con
 function openPremium(feature='Premium tools'){$('#premiumModal').hidden=false;$('#premiumModal .modal-heading p').textContent=`UNLOCK ${String(feature).toUpperCase()}`;if(!storeProducts.monthly||!storeProducts.yearly)loadStoreProducts(true)}
 function closePremium(){$('#premiumModal').hidden=true}
 function storePlugin(){return window.Capacitor?.Plugins?.TallyHoStore||window.TallyHoStore||null}
-function storePlanFromProduct(productIdentifier){return productIdentifier===STORE_PRODUCT_IDS.yearly?'yearly':'monthly'}
+function storePlanFromProduct(productIdentifier){return productIdentifier===STORE_PRODUCT_IDS.lifetime?'lifetime':productIdentifier===STORE_PRODUCT_IDS.yearly?'yearly':'monthly'}
 function renderStoreProducts(){
   const native=!!storePlugin(),monthly=storeProducts.monthly,yearly=storeProducts.yearly;
   const monthlyText=monthly?.displayPrice?`${monthly.displayPrice}/month`:(native?'Loading price…':'Available in the iOS app');
@@ -677,7 +753,8 @@ async function loadStoreProducts(force=false){
 function applyStoreEntitlement(result){
   const user=currentUser();
   if(!user)return !!result?.active;
-  const users=authUsers(),active=!!result?.active,productIdentifier=result?.productIdentifier||'';
+  const users=authUsers();
+  const active=!!result?.active,productIdentifier=result?.productIdentifier||'';
   users[user.email]={...users[user.email],plan:active?'premium':'free',subscription:active?(result?.plan||storePlanFromProduct(productIdentifier)):null,storeProductIdentifier:active?productIdentifier:null,storeManaged:true,updatedAt:new Date().toISOString()};
   setAuthUsers(users);
   renderAll();
@@ -685,7 +762,9 @@ function applyStoreEntitlement(result){
 }
 async function refreshPremiumEntitlement(){
   const plugin=storePlugin();
-  if(!plugin?.getEntitlement||!currentUser())return null;
+  const user=currentUser();
+  if(!user)return null;
+  if(!plugin?.getEntitlement)return null;
   if(entitlementRefreshPromise)return entitlementRefreshPromise;
   entitlementRefreshPromise=(async()=>{try{const result=await plugin.getEntitlement();applyStoreEntitlement(result);return result}catch(err){console.warn('TallyHo StoreKit entitlement refresh failed:',err);return null}finally{entitlementRefreshPromise=null}})();
   return entitlementRefreshPromise;
@@ -699,6 +778,7 @@ function setPurchaseBusy(busy,label='Contacting the App Store…'){
 function renderPremiumState(){const premium=isPremium();const labels=[['#premiumUpgrade','Unlock premium'],['#heroUpgrade','Start premium']];labels.forEach(([sel,label])=>{const b=$(sel);if(b){b.textContent=premium?'Premium is active':label;b.disabled=premium}});const freeButton=$('.plan-card:not(.featured) .outline-btn');if(freeButton)freeButton.textContent=premium?'Free plan available':'Current free plan';const badge=$('#buyChecksBadge');if(badge)badge.textContent=premium?'Unlimited premium checks':`${Math.max(0,3-freeChecksUsed())} free checks left this week`;const continueButton=$('#premiumContinue');if(continueButton)continueButton.disabled=premium;renderStoreProducts()}
 async function completePremiumPurchase(){
   if(!currentUser())return;
+  if(isPremium())return toast('Premium is already active.');
   const plugin=storePlugin();
   if(!plugin?.purchase)return toast('Premium purchases are available in the iOS app.');
   setPurchaseBusy(true,'Opening the App Store…');
@@ -716,12 +796,12 @@ async function restorePremium(){
   const plugin=storePlugin();
   if(!plugin?.restore)return toast(isPremium()?'Premium is already active.':'Restore Purchases is available in the iOS app.');
   setPurchaseBusy(true,'Checking Apple purchases…');
-  try{const result=await plugin.restore();if(applyStoreEntitlement(result)){closePremium();toast('Premium purchase restored.');return}toast('No active TallyHo subscription was found for this Apple ID.')}catch(err){toast(err?.message||'Restore could not be completed.')}finally{setPurchaseBusy(false)}
+  try{const result=await plugin.restore();if(applyStoreEntitlement(result)){closePremium();toast('Premium purchase restored.');return}toast('No active TallyHo Premium purchase was found for this Apple ID.')}catch(err){toast(err?.message||'Restore could not be completed.')}finally{setPurchaseBusy(false)}
 }
 function weekKey(d=new Date()){const s=sunday(d);return dateISO(s)}
 function freeChecksUsed(){return state.buyHistory.filter(x=>x.weekKey===weekKey()).length}
 function purchasePeriod(cadence){const today=startOfDay(new Date()),week=sunday(today);if(cadence==='biweekly'){const anchor=new Date(2020,0,5,12),blocks=Math.floor(diffDays(anchor,week)/14),start=addDays(anchor,blocks*14);return{start,end:addDays(start,14),label:`${dateLabel(start)} - ${dateLabel(addDays(start,13))}`}}return{start:week,end:addDays(week,7),label:`${dateLabel(week)} - ${dateLabel(addDays(week,6))}`}}
-function evaluatePurchase(name,amount,cadence,priority){const p=purchasePeriod(cadence),s=splitCashSummary(p.start,p.end),income=s.income,outflow=s.outflow,base=cents((Number(state.settings.startingBalance)||0)+income-outflow),guardRate=Math.max(0,Math.min(50,Number(state.settings.purchaseGuardPercent)||15))/100,guard=cents(Math.max(income,base,0)*guardRate),safe=cents(Math.max(0,base-guard)),after=cents(base-amount);let verdict=amount<=safe?'yes':amount<=base?'tight':'no';if(priority==='need'&&verdict==='tight')verdict='yes';const title=verdict==='yes'?'Yes, this fits the plan.':verdict==='tight'?'Technically yes. Future you is raising an eyebrow.':'Not this pay period.';const copy=verdict==='yes'?`You can cover ${money(amount)} and still keep ${money(Math.max(0,after))} after planned money moves.`:verdict==='tight'?`It fits before the safety buffer, but leaves only ${money(Math.max(0,after))}. Waiting would be the calmer choice.`:`You are short ${money(Math.abs(after))} after planned income, bills, savings, and reserves.`;return{id:uid('buy'),name,amount:cents(amount),cadence,priority,verdict,title,copy,available:base,safe,after,period:p.label,checkedAt:new Date().toISOString(),weekKey:weekKey()}}
+function evaluatePurchase(name,amount,cadence,priority){const p=purchasePeriod(cadence),s=splitCashSummary(p.start,p.end),income=s.income,outflow=s.outflow,carried=cashBalanceBefore(p.start),base=cents(carried+income-outflow),guardRate=Math.max(0,Math.min(50,Number(state.settings.purchaseGuardPercent)||15))/100,guard=cents(Math.max(income,base,0)*guardRate),safe=cents(Math.max(0,base-guard)),after=cents(base-amount);let verdict=amount<=safe?'yes':amount<=base?'tight':'no';if(priority==='need'&&verdict==='tight')verdict='yes';const title=verdict==='yes'?'Yes, this fits the plan.':verdict==='tight'?'Technically yes. Future you is raising an eyebrow.':'Not this pay period.';const copy=verdict==='yes'?`You can cover ${money(amount)} and still keep ${money(Math.max(0,after))} after planned money moves.`:verdict==='tight'?`It fits before the safety buffer, but leaves only ${money(Math.max(0,after))}. Waiting would be the calmer choice.`:`You are short ${money(Math.abs(after))} after planned income, bills, savings, and reserves.`;return{id:uid('buy'),name,amount:cents(amount),cadence,priority,verdict,title,copy,available:base,safe,after,period:p.label,checkedAt:new Date().toISOString(),weekKey:weekKey()}}
 function renderBuyVerdict(item){const box=$('#buyVerdict');if(!item){box.className='panel buy-verdict empty-verdict';box.innerHTML='<div class="verdict-icon">?</div><p class="eyebrow">TALLYHO VERDICT</p><h2>Enter a price to check it.</h2>';return}const icon=item.verdict==='yes'?'✓':item.verdict==='tight'?'!':'×';box.className=`panel buy-verdict ${item.verdict}`;box.innerHTML=`<div class="verdict-icon">${icon}</div><p class="eyebrow">${esc(item.name)} · ${esc(item.period)}</p><h2>${esc(item.title)}</h2><p>${esc(item.copy)}</p><div class="verdict-math"><div><span>Available before purchase</span><strong>${money(item.available)}</strong></div><div><span>Protected safety amount</span><strong>${money(Math.max(0,item.available-item.safe))}</strong></div><div><span>Left after purchase</span><strong>${money(item.after)}</strong></div></div>`}
 function renderCanBuy(){const list=state.buyHistory.slice().sort((a,b)=>String(b.checkedAt).localeCompare(String(a.checkedAt))).slice(0,12);$('#buyHistory').innerHTML=list.length?list.map(x=>`<div class="buy-history-row"><div><strong>${esc(x.name)}</strong><small>${formatDate(new Date(x.checkedAt),{dateStyle:'short'})} · ${esc(x.cadence)} check</small></div><b>${money(x.amount)}</b><span class="verdict-tag ${x.verdict}">${x.verdict==='yes'?'Buy it':x.verdict==='tight'?'Tight':'Wait'}</span></div>`).join(''):'<div class="empty-state">No purchase checks yet. Your cart is behaving, for now.</div>';renderPremiumState()}
 function bindAppStoreFeatures(){

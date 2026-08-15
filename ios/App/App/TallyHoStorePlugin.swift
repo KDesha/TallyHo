@@ -15,9 +15,14 @@ public class TallyHoStorePlugin: CAPPlugin, CAPBridgedPlugin {
 
     private let monthlyProductID = "com.kayladeshasier.tallyho.premium.month"
     private let annualProductID = "com.kayladeshasier.tallyho.premium.annually"
+    private let lifetimeProductID = "com.kayladeshasier.tallyho.premium.lifetime"
 
-    private var productIDs: Set<String> {
+    private var subscriptionProductIDs: Set<String> {
         [monthlyProductID, annualProductID]
+    }
+
+    private var entitlementProductIDs: Set<String> {
+        subscriptionProductIDs.union([lifetimeProductID])
     }
 
     private func productID(for plan: String) -> String? {
@@ -32,7 +37,10 @@ public class TallyHoStorePlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     private func plan(for productID: String) -> String {
-        productID == annualProductID ? "yearly" : "monthly"
+        if productID == lifetimeProductID {
+            return "lifetime"
+        }
+        return productID == annualProductID ? "yearly" : "monthly"
     }
 
     private func verified<T>(_ result: VerificationResult<T>) throws -> T {
@@ -57,11 +65,12 @@ public class TallyHoStorePlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     private func entitlementSnapshot() async -> JSObject {
+        var lifetimeTransaction: Transaction?
         var newestTransaction: Transaction?
 
         for await result in Transaction.currentEntitlements {
             guard case .verified(let transaction) = result,
-                  productIDs.contains(transaction.productID),
+                  entitlementProductIDs.contains(transaction.productID),
                   transaction.revocationDate == nil else {
                 continue
             }
@@ -71,12 +80,14 @@ public class TallyHoStorePlugin: CAPPlugin, CAPBridgedPlugin {
                 continue
             }
 
-            if newestTransaction == nil || transaction.purchaseDate > newestTransaction!.purchaseDate {
+            if transaction.productID == lifetimeProductID {
+                lifetimeTransaction = transaction
+            } else if newestTransaction == nil || transaction.purchaseDate > newestTransaction!.purchaseDate {
                 newestTransaction = transaction
             }
         }
 
-        guard let transaction = newestTransaction else {
+        guard let transaction = lifetimeTransaction ?? newestTransaction else {
             return ["active": false]
         }
 
@@ -96,7 +107,9 @@ public class TallyHoStorePlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func getProducts(_ call: CAPPluginCall) {
         Task {
             do {
-                let products = try await Product.products(for: Array(productIDs))
+                // Lifetime Premium is intentionally redemption-only. It is verified here as an
+                // entitlement but never returned to the web paywall or accepted by purchase().
+                let products = try await Product.products(for: Array(subscriptionProductIDs))
                 let orderedProducts = products.sorted {
                     let firstRank = plan(for: $0.id) == "monthly" ? 0 : 1
                     let secondRank = plan(for: $1.id) == "monthly" ? 0 : 1

@@ -48,3 +48,11 @@ test('routine pages omit repeated explainer copy', () => {
   assert.doesNotMatch(html, /id="periodNarrative"/);
   assert.doesNotMatch(html, /id="coachSummary"/);
 });
+
+test('App Review credentials stay fixed without bypassing StoreKit', () => {
+  assert.match(app, /isReviewDemoUser\(user\)&&sensitiveChange/);
+  assert.match(app, /email===REVIEW_DEMO_EMAIL[\s\S]*ensureReviewDemoProfile\(\)/);
+  assert.match(app, /storeManaged:true,reviewAccess:false/);
+  assert.doesNotMatch(app, /isReviewAccessUser/);
+  assert.doesNotMatch(app, /subscription:'review'/);
+});
