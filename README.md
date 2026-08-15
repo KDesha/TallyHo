@@ -8,6 +8,7 @@ This package converts the existing TallyHo budgeting PWA into a Capacitor-ready 
 - Per-account budget data on the local device for preview/testing
 - Free and Premium plan model
 - Premium paywall, restore-purchase entry point, and feature gates
+- Native StoreKit 2 product loading, purchasing, restoring, and entitlement refresh
 - “Can I buy it?” weekly/biweekly purchase checker with a safety buffer
 - Unlimited Premium checks and three free checks per week
 - Existing calendar, weekly map, Split Coach, insights, debt tools, imports, exports, premium themes, and device-unlock hooks
@@ -15,16 +16,9 @@ This package converts the existing TallyHo budgeting PWA into a Capacitor-ready 
 - Capacitor 8 project configuration
 - 192px, 512px, and 1024px app icons
 
-## Important production boundary
+## Production boundary
 
-The included authentication and subscription state are a **working local preview**, not production security. Before public release:
-
-1. Replace local preview authentication with Supabase, Firebase Auth, or your own secure backend.
-2. Store user budgets in a protected cloud database with row-level access controls.
-3. Implement the `window.TallyHoStore.purchase(plan)` and `window.TallyHoStore.restore()` bridge with StoreKit 2 or a maintained Capacitor in-app-purchase plugin.
-4. Validate subscription entitlements server-side or through App Store Server API notifications.
-5. Add final Terms, Privacy Policy, support URL, subscription terms, and data-retention language.
-6. Run accessibility, device, offline, security, and purchase sandbox testing.
+TallyHo 1.0 is intentionally local-first: profiles and budget data remain on the user's device. StoreKit 2 is the source of truth for paid entitlement on iOS; the app never grants Premium merely because a purchase button was tapped. Before submission, complete real-device Sandbox purchase and restore testing, publish the included privacy policy at a public HTTPS URL, add the final support URL, and verify the App Store privacy answers against the shipped build.
 
 ## Run in a browser
 
@@ -59,8 +53,12 @@ In Xcode:
 
 ## Suggested subscription products
 
-- `com.tallyho.budget.premium.monthly` — $4.99/month
-- `com.tallyho.budget.premium.yearly` — $39.99/year
+- `com.kayladeshasier.tallyho.premium.month` — $4.99/month
+- `com.kayladeshasier.tallyho.premium.annually` — $39.99/year
+
+The native entitlement bridge also recognizes `com.kayladeshasier.tallyho.premium.lifetime` as a non-consumable, permanent Premium entitlement. It is intentionally omitted from the in-app product list and purchase flow so it can only be obtained through a private App Store offer code and cannot appear as a customer-facing purchase button.
+
+The App Review demo profile is created locally with sample planning data and fixed review credentials, but it starts on the Free plan. Reviewers use the same StoreKit purchase and restore flow as every customer; Premium always requires a verified subscription or lifetime App Store transaction. Build 4 also removes the legacy review-only Premium entitlement from devices upgraded from build 3.
 
 These are launch suggestions only. Final prices are configured in App Store Connect and displayed from StoreKit in production rather than hard-coded.
 

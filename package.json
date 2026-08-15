@@ -4,6 +4,7 @@
   "private": true,
   "description": "TallyHo budgeting app for web, iOS, and Android.",
   "scripts": {
+    "test": "node --test tests/*.test.js",
     "serve": "npx http-server www -p 4173 -c-1",
     "cap:add:ios": "npx cap add ios",
     "cap:add:android": "npx cap add android",
